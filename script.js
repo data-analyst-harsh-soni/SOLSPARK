@@ -1,4 +1,3 @@
-// ===== GLOBAL VARIABLES & STATE =====
 const myVisualImages = ['gen1.jpg', 'gen2.jpg', 'gen3.jpg', 'gen4.jpg', 'gen5.jpg'];
 const myAiVideos = ['explainer1.mp4', 'explainer2.mp4', 'explainer3.mp4', 'explainer4.mp4'];
 let map, communityMap, drawnItems, drawControl, chart, pollutionChart, lastCalc, communityData = [],
@@ -7,13 +6,10 @@ let map, communityMap, drawnItems, drawControl, chart, pollutionChart, lastCalc,
     detectedLat = null,
     detectedLon = null;
 
-// ===== API TOKENS (Dummy Tokens for demonstration) =====
-// Note: AQI token removed as we now simulate NASA TEMPO data
-const NASA_TOKEN = "i4Vjou3u6oUk3dmcGGDixhSIviXGPDB6pR7gTY0H"; // Not used in the new function for better reliability
 
-// ===== CALCULATOR MOBILE FIXES =====
+const NASA_TOKEN = "i4Vjou3u6oUk3dmcGGDixhSIviXGPDB6pR7gTY0H";
 function initCalculatorMobileFixes() {
-    // Prevent zoom on focus for iOS
+    
     if (/iPhone|iPad|iPod/.test(navigator.userAgent)) {
         const inputs = document.querySelectorAll('.calculator-section input, .calculator-section select, .calculator-section textarea');
         inputs.forEach(input => {
@@ -26,27 +22,25 @@ function initCalculatorMobileFixes() {
         });
     }
     
-    // Ensure calculator section fits viewport
+
     function adjustCalculatorLayout() {
         const calculatorSection = document.querySelector('.calculator-section');
         if (calculatorSection && window.innerWidth <= 768) {
             calculatorSection.style.minHeight = 'auto';
             calculatorSection.style.padding = '2rem 1rem';
             
-            // Fix for input widths on mobile
+            
             const inputs = calculatorSection.querySelectorAll('input, select, textarea');
             inputs.forEach(input => {
                 input.style.width = '100%';
                 input.style.maxWidth = '100%';
             });
             
-            // Fix for button groups
             const buttonGroups = calculatorSection.querySelectorAll('.button-group');
             buttonGroups.forEach(group => {
                 group.style.flexDirection = 'column';
             });
             
-            // Fix for row layouts
             const rows = calculatorSection.querySelectorAll('.row');
             rows.forEach(row => {
                 row.style.flexDirection = 'column';
@@ -54,16 +48,12 @@ function initCalculatorMobileFixes() {
         }
     }
     
-    // Adjust layout on resize and load
     window.addEventListener('resize', adjustCalculatorLayout);
     window.addEventListener('load', adjustCalculatorLayout);
     adjustCalculatorLayout();
 }
 
 
-// ===== API FUNCTIONS - NASA INTEGRATION (UPDATED) =====
-
-// 1. NASA POWER (Solar Insolation)
 async function getNasaSolarData(lat, lon) {
     const weatherInfoEl = document.getElementById("weather-info");
     if (weatherInfoEl) {
@@ -75,17 +65,17 @@ async function getNasaSolarData(lat, lon) {
     
     try {
         const res = await fetch(url);
-        if (!res.ok) throw new Error(`NASA Error: ${res.status}`); 
+        if (!res.ok) throw new Error(`NASA Error: ${res.status}`);
         const data = await res.json();
 
         const insolationData = data.properties.parameter.ALLSKY_SFC_SW_DWN;
-        const avgInsolation = insolationData.ANN; 
+        const avgInsolation = insolationData.ANN;
 
         if (avgInsolation > 0) {
             if (weatherInfoEl) {
                 weatherInfoEl.textContent = `☀️ NASA Data (Avg. Annual): ${avgInsolation.toFixed(2)} kWh/m²/day.`;
             }
-            return { avgInsolation }; 
+            return { avgInsolation };
         }
         
         throw new Error('Invalid NASA data or ANN value is zero');
@@ -95,11 +85,10 @@ async function getNasaSolarData(lat, lon) {
         if (weatherInfoEl) {
             weatherInfoEl.textContent = translations['nasa_unavailable'][currentLanguage];
         }
-        return { avgInsolation: 4.5 }; 
+        return { avgInsolation: 4.5 };
     }
 }
 
-// 2. NASA TEMPO/OMPS SIMULATION (Air Quality) - UPDATED to use 'city' parameter
 async function getNasaAirQuality(lat, lon, city) {
     const aqiContainer = document.getElementById('aqi-container');
     const aqiEl = document.getElementById('aqi-results');
@@ -108,18 +97,16 @@ async function getNasaAirQuality(lat, lon, city) {
     if (aqiEl) aqiEl.innerHTML = `<p>${translations['nasa_fetching_aqi'][currentLanguage]}</p>`;
 
     try {
-        // SIMULATION: Calculate a conceptual AQI based on location to mimic TEMPO NO2 impact
-        // Use coordinates to simulate higher pollution in dense areas 
         const isHighPollutionArea = (lat > 20 && lat < 30) && (lon > 75 && lon < 85);
         
-        let no2Concentration = isHighPollutionArea ? Math.random() * (50 - 30) + 30 : Math.random() * (20 - 5) + 5; 
+        let no2Concentration = isHighPollutionArea ? Math.random() * (50 - 30) + 30 : Math.random() * (20 - 5) + 5;
         
-        let conceptualAqi = Math.round(no2Concentration * 3); 
+        let conceptualAqi = Math.round(no2Concentration * 3);
         
         if (conceptualAqi > 0) {
             return {
-                aqi: conceptualAqi, 
-                city: city, // <-- Use the passed city name
+                aqi: conceptualAqi,
+                city: city,
                 source: "NASA TEMPO/OMPS (Simulated Data)"
             };
         }
@@ -128,49 +115,44 @@ async function getNasaAirQuality(lat, lon, city) {
 
     } catch (e) {
         console.error("NASA Air Quality Fetch Error:", e);
-        return { aqi: 120, city: city, source: "Default Estimate" }; 
+        return { aqi: 120, city: city, source: "Default Estimate" };
     }
 }
 
-// 3. NASA LST SIMULATION (Urban Heat Island - UHI)
 async function getNasaLSTData(lat, lon) {
     
     try {
-        // Check if location is a major city center (simulation, using Jabalpur's general area)
-        const isMajorCity = Math.abs(lat - 23.16) < 0.2 && Math.abs(lon - 79.93) < 0.2; 
+        
+        const isMajorCity = Math.abs(lat - 23.16) < 0.2 && Math.abs(lon - 79.93) < 0.2;
         
         let avgLST;
         if (isMajorCity) {
-            avgLST = Math.random() * (325 - 310) + 310; // Hotter LST (37-52°C)
+            avgLST = Math.random() * (325 - 310) + 310;
         } else {
-            avgLST = Math.random() * (315 - 300) + 300; // Cooler LST (27-42°C)
+            avgLST = Math.random() * (315 - 300) + 300;
         }
 
         return { avgLST: avgLST.toFixed(1), isHighUHI: isMajorCity };
     } catch (e) {
         console.error("NASA LST Fetch Error:", e);
-        return { avgLST: 'N/A', isHighUHI: true }; 
+        return { avgLST: 'N/A', isHighUHI: true };
     }
 }
 
-// Existing function for address lookup
 async function getAddress(lat, lon) {
     const url = `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lon}`;
     try {
         const res = await fetch(url);
         if (!res.ok) throw new Error(`Geo Error: ${res.status}`);
         const data = await res.json();
-        // Return the full display name, which is used in addressInput
-        return data.display_name; 
+        
+        return data.display_name;
     } catch (e) {
         console.error("Address Fetch Error:", e);
         return "Unknown Location";
     }
 }
 
-// ===== NAVIGATION & INITIALIZATION LOGIC (Minimal Changes) =====
-
-// Helper function to show section without modifying browser history
 function showSectionWithoutPush(targetId) {
     document.querySelectorAll('.page-section').forEach(s => s.classList.remove('active'));
     const target = document.querySelector(targetId);
@@ -283,7 +265,7 @@ function setupEventListeners() {
         const observer = new MutationObserver(function(mutations) {
             mutations.forEach(function(mutation) {
                 if (mutation.type === 'attributes' && mutation.attributeName === 'class') {
-                    if (mutation.target.classList.contains('calculator-section') && 
+                    if (mutation.target.classList.contains('calculator-section') &&
                         mutation.target.classList.contains('active')) {
                         setTimeout(initCalculatorMobileFixes, 100);
                     }
@@ -294,7 +276,6 @@ function setupEventListeners() {
     }
 }
 
-// ===== CORE APP LOGIC & AI FUNCTIONS (UPDATED) =====
 function handleLogin() {
     const username = document.getElementById('username').value;
     const password = document.getElementById('password').value;
@@ -307,7 +288,6 @@ function handleLogin() {
     }
 }
 
-// UPDATED CALCULATE FUNCTION - Now uses all three NASA data sources and passes city name
 async function calculate() {
     showMessage(translations['calculating_solar'][currentLanguage]);
     
@@ -349,13 +329,11 @@ async function calculate() {
         return;
     }
     
-    // Get the address/city name to pass to AQI display
-    const addressText = document.getElementById('addressInput').value || 'Detected Location'; 
+    const addressText = document.getElementById('addressInput').value || 'Detected Location';
 
-    // NASA Data Integration: Solar (POWER), Air Quality (TEMPO), and UHI (LST)
     const solarData = await getNasaSolarData(locationData.lat, locationData.lon);
     const aqiData = await getNasaAirQuality(locationData.lat, locationData.lon, addressText); // Passed address
-    const lstData = await getNasaLSTData(locationData.lat, locationData.lon); 
+    const lstData = await getNasaLSTData(locationData.lat, locationData.lon);
 
     let requiredKw = (monthlyUnits / (solarData.avgInsolation * 30));
 
@@ -390,16 +368,16 @@ async function calculate() {
         subsidyInfo, loanInfo, finalCostAfterSubsidy: finalCostAfterSubsidy.toFixed(0)
     };
     
-    // Clear old UHI Tip before displaying new results
     const oldUhiTip = document.querySelector('.result-stat-card[style*="grid-column: 1 / -1"]');
     if(oldUhiTip) oldUhiTip.remove();
 
     displayResults(lastCalc);
     displaySubsidyResults(subsidyInfo, installCost, loanInfo);
     updateGamificationResults(lastCalc);
+    // **This is where the location data is saved to communityData**
     updateCommunityData({ co2: parseFloat(lastCalc.co2), trees, lat: locationData.lat, lon: locationData.lon });
     displayAqiResults(aqiData);
-    displayUhiTip(lstData); // Display new UHI tip
+    displayUhiTip(lstData);
     changeLanguage(currentLanguage);
 }
 
@@ -559,7 +537,6 @@ function resetAll() {
     document.getElementById("pollution-title").style.display = "none";
     document.querySelectorAll('.chart-container').forEach(c => c.style.display = 'none');
     
-    // Remove UHI Tip if present
     const uhiTip = document.querySelector('.result-stat-card[style*="grid-column: 1 / -1"]');
     if(uhiTip) uhiTip.remove();
     
@@ -573,7 +550,6 @@ function displayResults(data) {
     document.getElementById("results").style.display = "grid";
     document.getElementById("results").innerHTML = `<div class="result-stat-card"><h3>${data.requiredKw} kW</h3><p>${translations['size_label'][currentLanguage]}</p></div><div class="result-stat-card"><h3>₹${data.installCost}</h3><p>${translations['cost_label'][currentLanguage]}</p></div><div class="result-stat-card"><h3>₹${data.monthlySavings}</h3><p>${translations['savings_label'][currentLanguage]}</p></div><div class="result-stat-card"><h3>${data.payback} yrs</h3><p>${translations['payback_label'][currentLanguage]}</p></div><div class="result-stat-card"><h3>${data.co2} t/yr</h3><p>${translations['co2_label'][currentLanguage]}</p></div><div class="result-stat-card"><h3>${data.trees}</h3><p>${translations['trees_label'][currentLanguage]}</p></div>`;
 
-    // Ensure old UHI Tip is cleared before new rendering if it wasn't cleared by resetAll
     const oldUhiTip = document.querySelector('.result-stat-card[style*="grid-column: 1 / -1"]');
     if(oldUhiTip) oldUhiTip.remove();
 
@@ -604,7 +580,6 @@ function displayResults(data) {
     }
 }
 
-// New function to display UHI tip
 function displayUhiTip(lstData) {
     
     let uhiTipHtml = '';
@@ -622,7 +597,7 @@ function displayUhiTip(lstData) {
     
     const resultsGrid = document.getElementById("results");
     if (resultsGrid) {
-        // Only insert if the results grid is displayed (meaning calculation ran)
+        
         if(resultsGrid.style.display === "grid") {
             resultsGrid.insertAdjacentHTML('afterend', uhiTipHtml);
         }
@@ -637,7 +612,7 @@ function displayPollutionChart(aqi, co2Saved) {
         pollutionTitleEl.style.display = 'block';
         pollutionChartEl.parentElement.style.display = 'block';
 
-        const aqiReduction = co2Saved * 5; // Simplified impact factor
+        const aqiReduction = co2Saved * 5;
         const newAqi = Math.max(0, (aqi - aqiReduction));
 
         if (pollutionChart) pollutionChart.destroy();
@@ -667,12 +642,14 @@ function displayPollutionChart(aqi, co2Saved) {
 function updateGamificationResults(data) {
     const annualKwh = data.requiredKw * 4.5 * 365;
     const roverDays = (annualKwh / 2.5).toFixed(0);
-    const issSeconds = ((data.requiredKw / 120) * 3600).toFixed(0); 
+    const issSeconds = ((data.requiredKw / 120) * 3600).toFixed(0);
     const gamificationEl = document.getElementById("gamification-results");
 
     if (gamificationEl) {
         gamificationEl.style.display = "block";
         gamificationEl.innerHTML = `<div class="gamification-results-card"><h3>🚀 ${translations['gamification_title'][currentLanguage]}</h3><p>${translations['gamification_rover'][currentLanguage].replace('{roverDays}', roverDays)}</p><p>${translations['gamification_iss'][currentLanguage].replace('{issSeconds}', issSeconds)}</p><button class="btn" style="width:auto; margin-top:15px;" onclick="showColonistModal()">${translations['gamification_button'][currentLanguage]}</button></div>`;
+        lastCalc.roverDays = roverDays; // Store for translation function
+        lastCalc.issSeconds = issSeconds; // Store for translation function
     }
 }
 
@@ -707,6 +684,7 @@ function closeColonistModal() {
 }
 
 function updateCommunityData(data) {
+    // This function correctly saves the location and calculation data for the community map
     communityData.push(data);
     if (document.querySelector('#dashboard').classList.contains('active')) {
         renderDashboard();
@@ -728,9 +706,20 @@ function renderDashboard() {
     if (totalTreesEl) totalTreesEl.textContent = totalTrees;
     if (totalUsersEl) totalUsersEl.textContent = communityData.length;
 
-    if (communityData.length > 0) {
-        const latest = communityData[communityData.length - 1];
-        L.circleMarker([latest.lat, latest.lon], { radius: 8, fillColor: "#ff9d00", color: "#fff", weight: 1, opacity: 1, fillOpacity: 0.8 }).addTo(communityMap);
+    // **MODIFICATION: Clear existing markers before redrawing ALL community points**
+    // This ensures all calculations are always shown on the map correctly when rendering.
+    if (communityMap) {
+        communityMap.eachLayer((layer) => {
+            if (layer instanceof L.CircleMarker) {
+                communityMap.removeLayer(layer);
+            }
+        });
+
+        communityData.forEach(item => {
+            L.circleMarker([item.lat, item.lon], { radius: 8, fillColor: "#ff9d00", color: "#fff", weight: 1, opacity: 1, fillOpacity: 0.8 })
+             .addTo(communityMap)
+             .bindPopup(`CO₂ Saved: ${item.co2.toFixed(1)} t/yr`);
+        });
     }
 }
 
@@ -788,13 +777,13 @@ function checkSubsidyEligibility(state, income, monthlyBill, systemSize, totalCo
         subsidyAmount = (3 * 30000) + ((systemSize - 3) * 18000);
         schemeName = "PM Surya Ghar Muft Bijli Yojana";
     } else {
-        subsidyAmount = (3 * 30000) + (7 * 18000); 
+        subsidyAmount = (3 * 30000) + (7 * 18000);
         schemeName = "PM Surya Ghar Muft Bijli Yojana";
     }
 
     subsidyAmount = Math.min(subsidyAmount, totalCost);
 
-    return { isEligible, schemeName, subsidyAmount }; 
+    return { isEligible, schemeName, subsidyAmount };
 }
 
 function getLoanInfo(bank, costAfterSubsidy) {
@@ -904,7 +893,6 @@ async function askChatbot() {
     inputEl.focus();
 }
 
-// ===== MAINTENANCE MODULE FUNCTIONS (CONSOLIDATED) =====
 const maintenanceChecklistData = [
     { hi: "पैनल की सतह को पानी और मुलायम कपड़े से साफ किया गया? (धूल/गंदगी हटाई गई)", en: "Solar panel surfaces cleaned with water and a soft cloth? (Dust/Dirt removed)" },
     { hi: "सभी वायरिंग, केबल और जॉइंट्स को लूज/डैमेज के लिए चेक किया गया?", en: "All wiring, cables, and joints checked for looseness/damage?" },
@@ -932,7 +920,7 @@ const maintenanceCapacityTips = {
 function renderMaintenanceChecklist() {
     const ul = document.getElementById('maintenance-checklist');
     if (!ul) return;
-    ul.innerHTML = ''; 
+    ul.innerHTML = '';
 
     maintenanceChecklistData.forEach((item, index) => {
         const li = document.createElement('li');
@@ -991,10 +979,6 @@ function handleMaintenanceForm(event) {
     }, 5000);
 }
 
-// -------------------------------------------------------------------------------------------------
-// ⭐ NEW STAR RATING HELPER FUNCTION
-// -------------------------------------------------------------------------------------------------
-
 function getStarRatingHtml(rating) {
     const fullStar = '⭐'; // Or '&#9733;' (★)
     const emptyStar = '☆'; // Or '&#9734;' (☆)
@@ -1011,7 +995,6 @@ function getStarRatingHtml(rating) {
     return `<span style="color: gold; font-size: 1.2em; white-space: nowrap;">${starsHtml}</span> (${rating.toFixed(1)})`;
 }
 
-// ===== SOLAR PANELS RENDERING (UPDATED WITH RATING) =====
 function renderSolarPanels() {
     const panelsData = [
         {
@@ -1019,7 +1002,7 @@ function renderSolarPanels() {
             model: 'WSM-545',
             wattage: '545W Mono-PERC',
             price: '₹22,000 - ₹25,000',
-            rating: 4.8, // ⭐ Added Rating
+            rating: 4.8,
             link: 'https://shop.waaree.com/',
             description: {
                 en: 'One of India\'s largest solar panel manufacturers, known for high-efficiency modules suitable for Indian climates.',
@@ -1031,7 +1014,7 @@ function renderSolarPanels() {
             model: 'Alpha Series',
             wattage: '535W-550W',
             price: '₹23,000 - ₹26,000',
-            rating: 4.9, // ⭐ Added Rating
+            rating: 4.9,
             link: 'https://www.adanisolar.com/',
             description: {
                 en: 'A leader in the Indian solar industry with advanced technology and robust panel construction.',
@@ -1043,7 +1026,7 @@ function renderSolarPanels() {
             model: 'Mono PERC',
             wattage: '400W-550W',
             price: '₹20,000 - ₹24,000',
-            rating: 4.5, // ⭐ Added Rating
+            rating: 4.5,
             link: 'https://www.tatapower.com/solaroof-enquiry?utm_source=Google_Search&utm_medium=Paid&utm_campaign=TataPower_Brand_Central_Phrase-23044665828&gad_source=1&gad_campaignid=23044665828&gbraid=0AAAAAoySBgxljkZRIhqT_VuqpHftmnH50&gclid=Cj0KCQjw0NPGBhCDARIsAGAzpp2nF12rQMs1BtJ3nEODtjpKO98GuIxyfF35x68ffXwddF1-_isQ7RgaAvPYEALw_wcB',
             description: {
                 en: 'A trusted name in India, offering reliable and high-performance solar solutions.',
@@ -1055,7 +1038,7 @@ function renderSolarPanels() {
             model: 'Somera Series',
             wattage: '540W-560W',
             price: '₹22,500 - ₹25,500',
-            rating: 4.4, // ⭐ Added Rating
+            rating: 4.4,
             link: 'https://www.solarsquare.in/rooftop-solar-in-jabalpur?utm_campaign=Y2G_PMax_Jabalpur_19Aug2024&utm_source=adwords&utm_medium=ppc&gad_source=1&gad_campaignid=21605395603&gbraid=0AAAAACamwb9LjAyugjcYRSpHG17--Gv5l&gclid=Cj0KCQjw0NPGBhCDARIsAGAzpp0U_xtIk5hmKq_K65UtSYYwPIZr0lnSxdPeihMNp1gytvTVJmtwMucaArhXEALw_wcB',
             description: {
                 en: 'A globally recognized company with a strong presence in India, providing durable and efficient panels.',
@@ -1067,7 +1050,7 @@ function renderSolarPanels() {
             model: 'Shark Bi-facial',
             wattage: '550W',
             price: '₹23,000 - ₹27,000',
-            rating: 4.6, // ⭐ Added Rating
+            rating: 4.6,
             link: 'https://www.loomsolar.com/?srsltid=AfmBOopjw9tJqten8-ET8XYxsAExPCA404ZSR82CcYRYXw3Rj995b390',
             description: {
                 en: 'Popular in the residential market for their innovative and high-efficiency bi-facial solar panels.',
@@ -1079,7 +1062,7 @@ function renderSolarPanels() {
             model: 'Deserv',
             wattage: '540W Mono-PERC',
             price: '₹21,500 - ₹24,500',
-            rating: 4.3, // ⭐ Added Rating
+            rating: 4.3,
             link: 'https://www.renewsysworld.com/',
             description: {
                 en: 'Manufactures solar panels and other components, known for their high-quality and sustainable products.',
@@ -1091,7 +1074,7 @@ function renderSolarPanels() {
             model: 'Mono-PERC',
             wattage: '545W',
             price: '₹21,000 - ₹24,000',
-            rating: 4.1, // ⭐ Added Rating
+            rating: 4.1,
             link: 'https://www.premierenergies.com/',
             description: {
                 en: 'One of the top solar panel producers in India, focusing on both residential and commercial projects.',
@@ -1103,7 +1086,7 @@ function renderSolarPanels() {
             model: 'Helios',
             wattage: '540W',
             price: '₹22,000 - ₹25,000',
-            rating: 4.2, // ⭐ Added Rating
+            rating: 4.2,
             link: 'https://goldisolar.com/',
             description: {
                 en: 'Known for producing a wide range of solar PV modules with advanced technology and high-quality materials.',
@@ -1115,7 +1098,7 @@ function renderSolarPanels() {
             model: 'Mono-PERC',
             wattage: '540W',
             price: '₹20,500 - ₹23,500',
-            rating: 4.0, // ⭐ Added Rating
+            rating: 4.0,
             link: 'https://solex.in/',
             description: {
                 en: 'Offers high-quality solar panels and has a strong focus on innovative and reliable solar solutions.',
@@ -1127,7 +1110,7 @@ function renderSolarPanels() {
             model: 'Microtek Polycrystalline',
             wattage: '335W',
             price: '₹15,000 - ₹18,000',
-            rating: 3.9, // ⭐ Added Rating
+            rating: 3.9,
             link: 'https://www.microtek.in/product/solar-solutions',
             description: {
                 en: 'A popular brand for polycrystalline panels, providing affordable and efficient solutions for Indian homes.',
@@ -1139,7 +1122,7 @@ function renderSolarPanels() {
             model: 'Maxeon 6',
             wattage: '440W',
             price: '₹28,000 - ₹32,000',
-            rating: 5.0, // ⭐ Added Rating
+            rating: 5.0,
             link: 'https://us.sunpower.com/',
             description: {
                 en: 'A global leader in high-efficiency solar panels, offering premium performance and a long warranty.',
@@ -1151,7 +1134,7 @@ function renderSolarPanels() {
             model: 'Vertex S',
             wattage: '400W',
             price: '₹18,000 - ₹21,000',
-            rating: 4.5, // ⭐ Added Rating
+            rating: 4.5,
             link: 'https://www.trinasolar.com/us/product',
             description: {
                 en: 'A top-tier global manufacturer known for innovative and highly efficient solar panels.',
@@ -1163,7 +1146,7 @@ function renderSolarPanels() {
             model: 'Tiger Neo',
             wattage: '545W',
             price: '₹22,000 - ₹25,000',
-            rating: 4.7, // ⭐ Added Rating
+            rating: 4.7,
             link: 'https://www.jinkosolar.com/en/site/tigerneo_3',
             description: {
                 en: 'One of the world\'s largest solar panel manufacturers, recognized for product quality and reliability.',
@@ -1175,7 +1158,7 @@ function renderSolarPanels() {
             model: 'HiKu7 Mono PERC',
             wattage: '665W',
             price: '₹25,000 - ₹29,000',
-            rating: 4.5, // ⭐ Added Rating
+            rating: 4.5,
             link: 'https://www.canadiansolar.com/',
             description: {
                 en: 'One of the world\'s leading solar energy companies, known for premium quality and performance.',
@@ -1187,7 +1170,7 @@ function renderSolarPanels() {
             model: 'Hi-MO 5M',
             wattage: '540W',
             price: '₹21,000 - ₹24,000',
-            rating: 4.7, // ⭐ Added Rating
+            rating: 4.7,
             link: 'https://www.longi.com/in/',
             description: {
                 en: 'A global leader focused on producing high-efficiency monocrystalline solar panels.',
@@ -1202,7 +1185,7 @@ function renderSolarPanels() {
     panelListContainer.innerHTML = '';
 
     panelsData.forEach(panel => {
-        // ⭐ Rating HTML Generation
+        
         const starRatingHtml = getStarRatingHtml(panel.rating);
         
         const panelCard = document.createElement('div');
@@ -1222,11 +1205,6 @@ function renderSolarPanels() {
     });
 }
 
-
-// ===== LANGUAGE SUPPORT (CONSOLIDATED) & NEW KEYS ADDED =====
-
-
-// ===== LANGUAGE SUPPORT (CONSOLIDATED) & NEW KEYS ADDED =====
 const translations = {
     app_title: { en: "SOLAR FOR ALL", hi: "SOLAR FOR ALL" },
     login_username_placeholder: { en: "Enter Username", hi: "यूजरनेम दर्ज करें" },
@@ -1235,7 +1213,6 @@ const translations = {
     login_welcome: { en: "Welcome! Please log in to continue.", hi: "स्वागत है! जारी रखने के लिए कृपया लॉग इन करें।" },
     invalid_login: { en: "Invalid username or password.", hi: "अवैध उपयोगकर्ता नाम या पासवर्ड।" },
     
-    // Navigation
     nav_home: { en: "Home", hi: "होम" },
     nav_dashboard: { en: "Mission Control", hi: "मिशन कंट्रोल" },
     nav_calculator: { en: "Calculator", hi: "कैलकुलेटर" },
@@ -1246,9 +1223,8 @@ const translations = {
     nav_help: { en: "Help", hi: "सहायता" },
     nav_contact: { en: "Contact", hi: "संपर्क" },
     nav_solar_panels: { en: "Solar Panels", hi: "सोलर पैनल" },
-    nav_maintenance: { en: "Maintenance", hi: "रखरखाव" }, 
+    nav_maintenance: { en: "Maintenance", hi: "रखरखाव" },
     
-    // Home Page
     home_title: { en: "Light up Your Future with Solar Energy!", hi: "सौर ऊर्जा से अपने भविष्य को रोशन करें!" },
     home_subtitle: { en: "Reduce your electricity bills, protect the environment, and move towards a self-reliant energy future. Our 'SOLAR FOR ALL' calculator and AI will guide you every step of the way.", hi: "अपने बिजली के बिल कम करें, पर्यावरण की रक्षा करें और आत्मनिर्भर ऊर्जा भविष्य की ओर बढ़ें। हमारा 'सोलर फॉर ऑल' कैलकुलेटर और AI हर कदम पर आपका मार्गदर्शन करेंगे।" },
     home_card1_title: { en: "Instant Calculation", hi: "तुरंत गणना" },
@@ -1273,7 +1249,6 @@ const translations = {
     gallery4_title: { en: "Night View of a Village Lit by Solar Streetlights", hi: "सौर स्ट्रीटलाइट्स से रोशन एक गाँव का रात का दृश्य" },
     gallery4_desc: { en: "Solar streetlights enhance safety and extend evening activities in villages after dark.", hi: "सौर स्ट्रीटलाइट्स सुरक्षा बढ़ाती हैं और अँधेरा होने के बाद गाँवों में शाम की गतिविधियों का विस्तार करती हैं।" },
     
-    // Dashboard
     dashboard_title: { en: "Mission Control: Community Impact", hi: "मिशन कंट्रोल: सामुदायिक प्रभाव" },
     dashboard_stat1_title: { en: "Collective CO₂ Saved", hi: "सामूहिक CO₂ की बचत" },
     dashboard_stat2_title: { en: "Guardians Joined", hi: "जुड़े हुए संरक्षक" },
@@ -1282,7 +1257,6 @@ const translations = {
     did_you_know_title: { en: "NASA Tech on Your Roof!", hi: "आपकी छत पर NASA तकनीक!" },
     did_you_know_desc: { en: "The highly efficient solar cell technology we use today was pioneered by NASA to power satellites and spacecraft. By installing solar, you're using space-age tech to protect Earth!", hi: "आज हम जिस अत्यधिक कुशल सौर सेल तकनीक का उपयोग करते हैं, उसकी शुरुआत NASA ने उपग्रहों और अंतरिक्ष यान को बिजली देने के लिए की थी। सौर ऊर्जा लगाकर, आप पृथ्वी की रक्षा के लिए अंतरिक्ष-युग की तकनीक का उपयोग कर रहे हैं!" },
     
-    // Calculator
     calc_title: { en: "Your Solar Calculator", hi: "आपका सोलर कैलकुलेटर" },
     calc_subtitle: { en: "Enter your bill/units to get system size, cost, and savings.", hi: "सिस्टम का आकार, लागत और बचत जानने के लिए अपना बिल/यूनिट्स दर्ज करें।" },
     surveyor_title: { en: "Virtual Roof Surveyor", hi: "वर्चुअल छत सर्वेक्षक" },
@@ -1312,18 +1286,15 @@ const translations = {
     aqi_title: { en: "Live Air Quality", hi: "लाइव वायु गुणवत्ता" },
     calc_emi_title: { en: "EMI Comparison", hi: "EMI की तुलना" },
     
-    // UPDATED POLLUTION TITLE TO REFLECT NASA TEMPO SOURCE
-    pollution_title: { en: "Pollution Reduction Impact (Source: NASA TEMPO)", hi: "प्रदूषण कम करने का प्रभाव (स्रोत: नासा TEMPO)" }, 
+    pollution_title: { en: "Pollution Reduction Impact (Source: NASA TEMPO)", hi: "प्रदूषण कम करने का प्रभाव (स्रोत: नासा TEMPO)" },
     explainer_generate_btn: { en: "Generate Solar Analysis", hi: "सोलर विश्लेषण उत्पन्न करें" },
     explainer_generate_btn_text: { en: "Generate Solar Analysis", hi: "सोलर विश्लेषण उत्पन्न करें" },
 
-    // Chatbot
     chat_title: { en: "Ask Your Solar Bot 🤖", hi: "अपने सोलर बॉट से पूछें 🤖" },
     chat_welcome: { en: "Hello! I'm here to answer your questions about solar energy.", hi: "नमस्ते! मैं सौर ऊर्जा के बारे में आपके सवालों का जवाब देने के लिए यहाँ हूँ।" },
     chat_placeholder: { en: "e.g., How much does solar energy cost?", hi: "जैसे, सौर ऊर्जा की लागत कितनी है?" },
     chat_send_btn: { en: "Send", hi: "भेजें" },
     
-    // AI Explainer
     explainer_title: { en: "Solar Analysis", hi: "सोलर विश्लेषण" },
     explainer_subtitle: { en: "Here is your personalized analysis and voice-over script.", hi: "यह आपका व्यक्तिगत विश्लेषण और वॉइस-ओवर स्क्रिप्ट है।" },
     explainer_placeholder: { en: "Your generated script will appear here after calculation.", hi: "गणना के बाद आपका जेनरेट किया गया स्क्रिप्ट यहाँ दिखाई देगा।" },
@@ -1338,7 +1309,6 @@ const translations = {
     video_placeholder: { en: "Video will appear here", hi: "वीडियो यहाँ दिखाई देगा" },
     video_generate_btn: { en: "Generate Video", hi: "वीडियो उत्पन्न करें" },
     
-    // Help Center (FAQs)
     help_title: { en: "Help Center", hi: "सहायता केंद्र" },
     help_subtitle1: { en: "Here you will find answers to frequently asked questions about solar energy, our calculator, and services.", hi: "यहाँ आपको सौर ऊर्जा, हमारे कैलकुलेटर और सेवाओं के बारे में अक्सर पूछे जाने वाले सवालों के जवाब मिलेंगे।" },
     faq1_q: { en: "What is solar energy?", hi: "सौर ऊर्जा क्या है?" },
@@ -1352,7 +1322,6 @@ const translations = {
     faq5_q: { en: "Do solar systems require a separate Battery?", hi: "क्या सोलर सिस्टम के लिए अलग से बैटरी की आवश्यकता होती है?" },
     faq5_a: { en: "Grid-tied systems (On-Grid) usually do not need a battery. Only Off-Grid or Hybrid systems use batteries for nighttime backup power.", hi: "ग्रिड से जुड़े सिस्टम (On-Grid) में आमतौर पर बैटरी की आवश्यकता नहीं होती है। केवल Off-Grid या हाइब्रिड सिस्टम रात में बैकअप पावर के लिए बैटरी का उपयोग करते हैं।" },
 
-    // Contact
     contact_title: { en: "Contact Us", hi: "संपर्क" },
     contact_subtitle: { en: "Contact us to learn more about our solar energy solutions or for any inquiries.", hi: "हमारे सौर ऊर्जा समाधानों के बारे में अधिक जानने या किसी भी पूछताछ के लिए हमसे संपर्क करें।" },
     contact_name_placeholder: { en: "Your Name", hi: "आपका नाम" },
@@ -1361,7 +1330,6 @@ const translations = {
     contact_send_btn: { en: "Send Message", hi: "संदेश भेजें" },
     footer_text: { en: "&copy; 2025 SOLAR FOR ALL.", hi: "&copy; 2025 SOLAR FOR ALL" },
     
-    // Results & Gamification
     size_label: { en: "System Size", hi: "सिस्टम का आकार" },
     cost_label: { en: "Total Cost", hi: "कुल लागत" },
     savings_label: { en: "Monthly Savings", hi: "मासिक बचत" },
@@ -1392,7 +1360,6 @@ const translations = {
     battery_storage_label: { en: "Battery Storage", hi: "बैटरी स्टोरेज" },
     colonist_error: { en: "Please calculate your Earth-based system first!", hi: "कृपया पहले अपने पृथ्वी-आधारित सिस्टम की गणना करें!" },
     
-    // Subsidy
     subsidy_not_eligible_title: { en: "❌ Not Eligible for Subsidy", hi: "❌ सब्सिडी के लिए पात्र नहीं" },
     subsidy_not_eligible_desc: { en: "Your electricity bill is very low, which suggests solar energy might not be the most economical option for you right now.", hi: "आपका बिजली बिल बहुत कम है, जो दर्शाता है कि सौर ऊर्जा अभी आपके लिए सबसे किफायती विकल्प नहीं हो सकती है।" },
     subsidy_eligible_title: { en: "💰 Your Subsidy Potential", hi: "💰 आपकी सब्सिडी की संभावना" },
@@ -1404,7 +1371,6 @@ const translations = {
     no_scheme_found: { en: "No specific scheme found", hi: "कोई विशेष योजना नहीं मिली" },
     no_loan: { en: "No Loan", hi: "कोई ऋण नहीं" },
 
-    // Messages & Errors
     calculating_solar: { en: "Calculating your solar potential...", hi: "आपकी सौर क्षमता की गणना की जा रही है..." },
     invalid_input: { en: "Please enter valid positive numbers.", hi: "कृपया वैध सकारात्मक संख्याएं दर्ज करें।" },
     system_size_adjusted_roof: { en: "System size adjusted to fit your roof area.", hi: "सिस्टम का आकार आपकी छत के क्षेत्रफल के अनुसार समायोजित किया गया है।" },
@@ -1433,13 +1399,11 @@ const translations = {
     nasa_fetching: { en: "Fetching Solar Data (POWER) from NASA...", hi: "नासा से सौर डेटा (POWER) प्राप्त किया जा रहा है..." },
     nasa_unavailable: { en: "⚠️ NASA data unavailable. Using estimate (4.5 kWh).", hi: "⚠️ नासा डेटा उपलब्ध नहीं है। अनुमान का उपयोग किया जा रहा है (4.5 kWh)。" },
     
-    // NEW NASA TEMPO/UHI KEYS
     nasa_fetching_aqi: { en: "Fetching Air Quality (TEMPO/OMPS) from NASA...", hi: "नासा से वायु गुणवत्ता (TEMPO/OMPS) डेटा प्राप्त किया जा रहा है..." },
     uhi_tip_title: { en: "Urban Heat Island Insight", hi: "शहरी ऊष्मा द्वीप (UHI) जानकारी" },
     uhi_tip_high: { en: "NASA LST data suggests high local temperature. Consider installing Solar Panels with a white or reflective backing and prioritize green roofing/cooling solutions to combat UHI.", hi: "नासा LST डेटा उच्च स्थानीय तापमान का सुझाव देता है। UHI का मुकाबला करने के लिए सफेद या परावर्तक बैक वाली सोलर पैनल स्थापित करने पर विचार करें और हरित छत/शीतलन समाधानों को प्राथमिकता दें।" },
     uhi_tip_low: { en: "NASA LST data suggests moderate local temperature. Your solar installation will still help prevent local heat buildup.", hi: "नासा LST डेटा मध्यम स्थानीय तापमान का सुझाव देता है। आपकी सौर स्थापना अभी भी स्थानीय गर्मी के निर्माण को रोकने में मदद करेगी।" },
     
-    // Maintenance Section Translations
     maintenance_title: { en: "🛠️ Solar System Maintenance & Health Check", hi: "🛠️ सोलर सिस्टम का रखरखाव और स्वास्थ्य जाँच" },
     capacity_selector_label: { en: "Select Your System Capacity:", hi: "अपनी सिस्टम क्षमता चुनें:" },
     capacity_small_option: { en: "Small System (< 5kW)", hi: "छोटा सिस्टम (< 5kW)" },
@@ -1452,7 +1416,6 @@ const translations = {
     annual_check_title: { en: "⭐ Annual Professional Inspection", hi: "⭐ वार्षिक पेशेवर निरीक्षण" },
     annual_check_subtitle: { en: "Schedule a professional technician once a year for an overall health check-up.", hi: "समग्र स्वास्थ्य जाँच के लिए साल में एक बार एक पेशेवर तकनीशियन को बुलाएँ।" },
 
-    // Chatbot Fallback Answers
     chatbot_no_answer: { en: "I'm sorry, I can only answer questions from my knowledge base. Please ask about solar energy.", hi: "क्षमा करें, मैं केवल अपने ज्ञानकोष के प्रश्नों का उत्तर दे सकता हूँ। कृपया सौर ऊर्जा के बारे में पूछें।" },
     chatbot_fallback_answers: {
         greetings: {
@@ -1786,20 +1749,18 @@ function changeLanguage(lang) {
         generateAI();
     }
     
-    // Re-run display functions to update the dynamic content and language
     if (document.querySelector('#calculator').classList.contains('active') && lastCalc) {
-        // Must clear and re-insert UHI tip for language update
+        
         const oldUhiTip = document.querySelector('.result-stat-card[style*="grid-column: 1 / -1"]');
         if(oldUhiTip) oldUhiTip.remove();
-        displayUhiTip(lastCalc.lstData); 
+        displayUhiTip(lastCalc.lstData);
         
-        displayResults(lastCalc); 
+        displayResults(lastCalc);
         
         displayAqiResults(lastCalc.aqiData);
     }
 }
 
-// Initialize calculator mobile fixes when page loads, if the section is active
 window.addEventListener('load', function() {
     if (document.querySelector('.calculator-section.active')) {
         initCalculatorMobileFixes();
