@@ -1,6 +1,6 @@
 const myVisualImages = ['gen1.jpg', 'gen2.jpg', 'gen3.jpg', 'gen4.jpg', 'gen5.jpg'];
 const myAiVideos = ['explainer1.mp4', 'explainer2.mp4', 'explainer3.mp4', 'explainer4.mp4'];
-let map, communityMap, drawnItems, drawControl, chart, pollutionChart, lastCalc, communityData = [],
+let map, communityMap, drawnItems, communityDrawnItems, drawControl, chart, pollutionChart, lastCalc, communityData = [],
     locationDetected = false,
     currentLanguage = 'en',
     detectedLat = null,
@@ -33,7 +33,7 @@ function initCalculatorMobileFixes() {
             const inputs = calculatorSection.querySelectorAll('input, select, textarea');
             inputs.forEach(input => {
                 input.style.width = '100%';
-                input.style.maxWidth = '100%';
+                input.maxWidth = '100%';
             });
             
             const buttonGroups = calculatorSection.querySelectorAll('.button-group');
@@ -159,7 +159,17 @@ function showSectionWithoutPush(targetId) {
     
     if (target) {
         target.classList.add('active');
-        if (targetId === '#dashboard') renderDashboard();
+        if (targetId === '#dashboard') {
+            // **सुधार 3:** जब डैशबोर्ड दिखता है, तो मैप को रीसाइज़ करने के लिए मजबूर करें
+            if (communityMap) {
+                setTimeout(() => {
+                    communityMap.invalidateSize();
+                    renderDashboard(); // सुनिश्चित करें कि डेटा लोड होने के बाद मैप अपडेट हो
+                }, 100);
+            } else {
+                renderDashboard();
+            }
+        }
         if (targetId === '#solar-panels') renderSolarPanels();
         if (targetId === '#maintenance') {
             updateMaintenanceTips();
@@ -229,8 +239,14 @@ function initializeMaps() {
             document.getElementById("roofArea").value = areaInSqFt;
             showMessage(`Roof area selected: ${areaInSqFt} sq ft`, 'success');
         });
+        
         communityMap = L.map('communityMap').setView([20.5937, 78.9629], 5);
         L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(communityMap);
+        
+        // **सुधार 1:** कम्युनिटी मार्करों के लिए एक डेडिकेटेड फीचर ग्रुप बनाएँ
+        communityDrawnItems = new L.FeatureGroup();
+        communityMap.addLayer(communityDrawnItems);
+        
         autoDetectLocation();
     } catch (e) {
         console.error("Map initialization failed:", e);
@@ -374,8 +390,10 @@ async function calculate() {
     displayResults(lastCalc);
     displaySubsidyResults(subsidyInfo, installCost, loanInfo);
     updateGamificationResults(lastCalc);
-    // **This is where the location data is saved to communityData**
+    
+    // **यह वह जगह है जहाँ लोकेशन डेटा communityData में सेव होता है**
     updateCommunityData({ co2: parseFloat(lastCalc.co2), trees, lat: locationData.lat, lon: locationData.lon });
+    
     displayAqiResults(aqiData);
     displayUhiTip(lstData);
     changeLanguage(currentLanguage);
@@ -684,8 +702,10 @@ function closeColonistModal() {
 }
 
 function updateCommunityData(data) {
-    // This function correctly saves the location and calculation data for the community map
+    // यह फ़ंक्शन लोकेशन और डेटा को communityData में सेव करता है।
     communityData.push(data);
+    
+    // अगर डैशबोर्ड एक्टिव है, तो तुरंत मैप अपडेट करें (इससे रेंडरडैशबोर्ड को कॉल करने का अवसर मिलता है)
     if (document.querySelector('#dashboard').classList.contains('active')) {
         renderDashboard();
     }
@@ -706,20 +726,37 @@ function renderDashboard() {
     if (totalTreesEl) totalTreesEl.textContent = totalTrees;
     if (totalUsersEl) totalUsersEl.textContent = communityData.length;
 
-    // **MODIFICATION: Clear existing markers before redrawing ALL community points**
-    // This ensures all calculations are always shown on the map correctly when rendering.
-    if (communityMap) {
-        communityMap.eachLayer((layer) => {
-            if (layer instanceof L.CircleMarker) {
-                communityMap.removeLayer(layer);
-            }
-        });
+    // **सुधार 2:** मार्करों को प्रबंधित करने के लिए फीचर ग्रुप का उपयोग करें
+    if (communityMap && communityDrawnItems) {
+        // सबसे पहले, फीचर ग्रुप से सभी मार्करों को साफ़ करें
+        communityDrawnItems.clearLayers(); 
 
+        // फिर, array में मौजूद हर एक आइटम के लिए मार्कर जोड़ें
         communityData.forEach(item => {
-            L.circleMarker([item.lat, item.lon], { radius: 8, fillColor: "#ff9d00", color: "#fff", weight: 1, opacity: 1, fillOpacity: 0.8 })
-             .addTo(communityMap)
-             .bindPopup(`CO₂ Saved: ${item.co2.toFixed(1)} t/yr`);
+            L.circleMarker([item.lat, item.lon], { 
+                radius: 8, 
+                fillColor: "#0072ff", 
+                color: "#fff", 
+                weight: 1, 
+                opacity: 1, 
+                fillOpacity: 0.8 
+            })
+             .addTo(communityDrawnItems) // मार्कर को फीचर ग्रुप में जोड़ें
+             .bindPopup(`CO₂ Saved: ${item.co2.toFixed(1)} t/yr. Trees: ${item.trees}`);
         });
+        
+        // यदि मार्कर हैं, तो मैप को उन सभी मार्करों के बाउंड पर ज़ूम करें
+        if (communityData.length > 0) {
+             communityMap.invalidateSize(); // मैप साइज़ को फिर से जाँचें
+             const bounds = communityDrawnItems.getBounds();
+             if (bounds.isValid()) {
+                 communityMap.fitBounds(bounds, { padding: [50, 50] });
+             } else {
+                 // यदि केवल एक ही पॉइंट है, तो सिर्फ़ उस पर सेट करें
+                 const latest = communityData[communityData.length - 1];
+                 communityMap.setView([latest.lat, latest.lon], 12);
+             }
+        }
     }
 }
 
@@ -1380,7 +1417,7 @@ const translations = {
     buy_link_text: { en: "Official Buy Link", hi: "आधिकारिक खरीदने का लिंक" },
     explainer_generated_message: { en: "AI Solar Analysis Generated!", hi: "AI सौर विश्लेषण उत्पन्न हुआ!" },
     explainer_generate_first_message: { en: "Please run a calculation first to generate an AI explainer.", hi: "कृपया पहले एक गणना चलाएँ ताकि AI एक्सप्लेनर उत्पन्न हो सके।" },
-    visual_error: { en: "Please run a calculation first.", hi: "कृपया पहले एक गणना चलाएँ।" },
+    visual_error: { en: "Please run a calculation first.", hi: "कृपया पहले एक गणना चलाएँ." },
     visual_generated: { en: "AI visual generated!", hi: "AI विज़ुअल उत्पन्न हुआ!" },
     video_error: { en: "Please run a calculation first.", hi: "कृपया पहले एक गणना चलाएँ." },
     video_generated: { en: "AI video generated!", hi: "AI वीडियो उत्पन्न हुआ!" },
