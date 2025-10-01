@@ -262,12 +262,10 @@ body::before {
     background: rgba(10, 25, 41, 0.9);
     backdrop-filter: blur(20px);
     border-bottom: 1px solid var(--glass-border);
-    /* 👇 Fix: Header को स्क्रॉल पर स्थिर रखने के लिए 'fixed' का उपयोग करें */
-    position: fixed; 
+    position: fixed;
     top: 0;
     z-index: 1000;
     width: 100%;
-    /* 👆 Fix */
 }
 
 .header .logo {
@@ -362,19 +360,18 @@ body::before {
     outline: none;
 }
 
-/* 👇 Fix: Header के नीचे कंटेंट को सही जगह देने के लिए main में margin-top जोड़ा गया */
+/* Main content margin for fixed header */
 main {
     width: 100%;
-    margin-top: 60px; 
+    margin-top: 70px;
 }
-/* 👆 Fix */
 
 .page-section {
     padding: 3rem 2rem;
     display: none;
     width: 100%;
     background: rgba(0, 0, 0, 0.1);
-    min-height: 80vh;
+    min-height: calc(100vh - 70px);
 }
 
 .page-section.active {
@@ -813,7 +810,7 @@ main {
     flex-wrap: wrap;
 }
 
-.row>div {
+.row > div {
     flex: 1;
     min-width: 200px;
 }
@@ -1713,12 +1710,12 @@ footer {
 
     .nav-menu {
         position: fixed;
-        top: 60px;
+        top: 70px;
         left: -100%;
         background: rgba(10, 25, 41, 0.95);
         backdrop-filter: blur(20px);
         width: 100%;
-        height: calc(100vh - 60px);
+        height: calc(100vh - 70px);
         flex-direction: column;
         justify-content: flex-start;
         padding: 2rem;
@@ -1846,4 +1843,39 @@ body {
 #main-app {
     overflow-x: hidden;
     width: 100%;
+}
+
+/* Additional fixes for better mobile experience */
+@media (max-width: 768px) {
+    main {
+        margin-top: 60px;
+    }
+    
+    .page-section {
+        min-height: calc(100vh - 60px);
+        padding: 1.5rem 1rem;
+    }
+    
+    .header {
+        padding: 0.5rem 1rem;
+    }
+    
+    .nav-menu {
+        top: 60px;
+        height: calc(100vh - 60px);
+    }
+}
+
+/* Fix for backdrop-filter support */
+@supports not (backdrop-filter: blur(10px)) {
+    .login-box,
+    .card,
+    .feature-card,
+    .stat-card,
+    .gallery-card,
+    .panel-card,
+    .modal-content,
+    .message-box {
+        background: rgba(10, 25, 41, 0.95);
+    }
 }
