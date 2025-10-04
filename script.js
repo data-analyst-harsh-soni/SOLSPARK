@@ -1,6 +1,7 @@
 const myVisualImages = ['gen1.jpg', 'gen2.jpg', 'gen3.jpg', 'gen4.jpg', 'gen5.jpg'];
 const myAiVideos = ['explainer1.mp4', 'explainer2.mp4', 'explainer3.mp4', 'explainer4.mp4'];
-let map, communityMap, drawnItems, communityDrawnItems, drawControl, chart, pollutionChart, lastCalc, communityData = [],
+let map, communityMap, isCommunityMapInitialized = false,
+    drawnItems, communityDrawnItems, drawControl, chart, pollutionChart, lastCalc, communityData = [],
     locationDetected = false,
     currentLanguage = 'en',
     detectedLat = null,
@@ -153,6 +154,25 @@ async function getAddress(lat, lon) {
     }
 }
 
+function initCommunityMap() {
+    if (isCommunityMapInitialized || !document.getElementById('communityMap')) return;
+
+    try {
+        communityMap = L.map('communityMap').setView([20.5937, 78.9629], 5);
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(communityMap);
+
+        communityDrawnItems = new L.FeatureGroup();
+        communityMap.addLayer(communityDrawnItems);
+        isCommunityMapInitialized = true;
+        
+        if (communityData.length > 0) {
+            renderDashboard(); 
+        }
+    } catch (e) {
+        console.error("Community Map initialization failed:", e);
+    }
+}
+
 function showSectionWithoutPush(targetId) {
     document.querySelectorAll('.page-section').forEach(s => s.classList.remove('active'));
     const target = document.querySelector(targetId);
@@ -160,11 +180,12 @@ function showSectionWithoutPush(targetId) {
     if (target) {
         target.classList.add('active');
         if (targetId === '#dashboard') {
-            // **सुधार 3:** जब डैशबोर्ड दिखता है, तो मैप को रीसाइज़ करने के लिए मजबूर करें
+            initCommunityMap(); 
+            
             if (communityMap) {
                 setTimeout(() => {
                     communityMap.invalidateSize();
-                    renderDashboard(); // सुनिश्चित करें कि डेटा लोड होने के बाद मैप अपडेट हो
+                    renderDashboard(); 
                 }, 100);
             } else {
                 renderDashboard();
@@ -176,6 +197,12 @@ function showSectionWithoutPush(targetId) {
             renderMaintenanceChecklist();
         }
         if (targetId === '#calculator') {
+            
+            if (map) {
+                setTimeout(() => {
+                    map.invalidateSize();
+                }, 100);
+            }
             setTimeout(initCalculatorMobileFixes, 100);
         }
     }
@@ -222,8 +249,11 @@ function initializeMaps() {
     try {
         const osmLayer = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors' });
         const satelliteLayer = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', { attribution: 'Tiles &copy; Esri' });
-        map = L.map('map', { layers: [satelliteLayer] }).setView([23.1815, 79.9864], 12);
+        
+       
+        map = L.map('map', { layers: [osmLayer] }).setView([23.1815, 79.9864], 12);
         L.control.layers({ "Satellite": satelliteLayer, "Street View": osmLayer }).addTo(map);
+        
         drawnItems = new L.FeatureGroup();
         map.addLayer(drawnItems);
         drawControl = new L.Control.Draw({
@@ -237,15 +267,11 @@ function initializeMaps() {
             drawnItems.addLayer(layer);
             const areaInSqFt = (L.GeometryUtil.geodesicArea(layer.getLatLngs()[0]) * 10.7639).toFixed(0);
             document.getElementById("roofArea").value = areaInSqFt;
+            document.getElementById("roofArea").focus(); 
             showMessage(`Roof area selected: ${areaInSqFt} sq ft`, 'success');
         });
         
-        communityMap = L.map('communityMap').setView([20.5937, 78.9629], 5);
-        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(communityMap);
         
-        // **सुधार 1:** कम्युनिटी मार्करों के लिए एक डेडिकेटेड फीचर ग्रुप बनाएँ
-        communityDrawnItems = new L.FeatureGroup();
-        communityMap.addLayer(communityDrawnItems);
         
         autoDetectLocation();
     } catch (e) {
@@ -390,8 +416,6 @@ async function calculate() {
     displayResults(lastCalc);
     displaySubsidyResults(subsidyInfo, installCost, loanInfo);
     updateGamificationResults(lastCalc);
-    
-    // **यह वह जगह है जहाँ लोकेशन डेटा communityData में सेव होता है**
     updateCommunityData({ co2: parseFloat(lastCalc.co2), trees, lat: locationData.lat, lon: locationData.lon });
     
     displayAqiResults(aqiData);
@@ -506,29 +530,35 @@ function addMarker(latlng, title) {
 }
 
 async function getLocation() {
-    const addressText = document.getElementById('addressInput').value;
-    if (addressText.length > 0 && detectedLat && detectedLon && addressText.includes('Chhindwara')) {
-        return { lat: detectedLat, lon: detectedLon };
+    const addressInput = document.getElementById('addressInput');
+    const addressText = addressInput.value.trim();
+
+    if (addressText.length === 0) {
+        showMessage(translations['location_prompt'][currentLanguage], "error");
+        return null;
     }
-    if (addressText.length > 0) {
-        try {
-            const response = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(addressText)}`);
-            const data = await response.json();
-            if (data && data.length > 0) {
-                const loc = data[0];
-                map.setView([loc.lat, loc.lon], 16);
-                addMarker([loc.lat, loc.lon], loc.display_name);
-                return { lat: parseFloat(loc.lat), lon: parseFloat(loc.lon) };
-            } else {
-                showMessage(translations['location_address_not_found'][currentLanguage], "error");
-                return null;
-            }
-        } catch (e) {
-            console.error("Geocoding Error:", e);
+
+    try {
+        const response = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(addressText)}&limit=1`);
+        const data = await response.json();
+        
+        if (data && data.length > 0) {
+            const loc = data[0];
+            const lat = parseFloat(loc.lat);
+            const lon = parseFloat(loc.lon);
+            map.setView([lat, lon], 16);
+            addMarker([lat, lon], loc.display_name);
+            detectedLat = lat;
+            detectedLon = lon;
+            
+            return { lat, lon };
+        } else {
+            showMessage(translations['location_address_not_found'][currentLanguage], "error");
             return null;
         }
-    } else {
-        showMessage(translations['location_prompt'][currentLanguage], "error");
+    } catch (e) {
+        console.error("Geocoding Error:", e);
+        showMessage(translations['location_address_not_found'][currentLanguage], "error");
         return null;
     }
 }
@@ -666,8 +696,8 @@ function updateGamificationResults(data) {
     if (gamificationEl) {
         gamificationEl.style.display = "block";
         gamificationEl.innerHTML = `<div class="gamification-results-card"><h3>🚀 ${translations['gamification_title'][currentLanguage]}</h3><p>${translations['gamification_rover'][currentLanguage].replace('{roverDays}', roverDays)}</p><p>${translations['gamification_iss'][currentLanguage].replace('{issSeconds}', issSeconds)}</p><button class="btn" style="width:auto; margin-top:15px;" onclick="showColonistModal()">${translations['gamification_button'][currentLanguage]}</button></div>`;
-        lastCalc.roverDays = roverDays; // Store for translation function
-        lastCalc.issSeconds = issSeconds; // Store for translation function
+        lastCalc.roverDays = roverDays; 
+        lastCalc.issSeconds = issSeconds; 
     }
 }
 
@@ -702,10 +732,7 @@ function closeColonistModal() {
 }
 
 function updateCommunityData(data) {
-    // यह फ़ंक्शन लोकेशन और डेटा को communityData में सेव करता है।
     communityData.push(data);
-    
-    // अगर डैशबोर्ड एक्टिव है, तो तुरंत मैप अपडेट करें (इससे रेंडरडैशबोर्ड को कॉल करने का अवसर मिलता है)
     if (document.querySelector('#dashboard').classList.contains('active')) {
         renderDashboard();
     }
@@ -725,13 +752,8 @@ function renderDashboard() {
     if (totalCo2El) totalCo2El.textContent = `${totalCo2.toFixed(1)} t/yr`;
     if (totalTreesEl) totalTreesEl.textContent = totalTrees;
     if (totalUsersEl) totalUsersEl.textContent = communityData.length;
-
-    // **सुधार 2:** मार्करों को प्रबंधित करने के लिए फीचर ग्रुप का उपयोग करें
     if (communityMap && communityDrawnItems) {
-        // सबसे पहले, फीचर ग्रुप से सभी मार्करों को साफ़ करें
         communityDrawnItems.clearLayers(); 
-
-        // फिर, array में मौजूद हर एक आइटम के लिए मार्कर जोड़ें
         communityData.forEach(item => {
             L.circleMarker([item.lat, item.lon], { 
                 radius: 8, 
@@ -741,18 +763,15 @@ function renderDashboard() {
                 opacity: 1, 
                 fillOpacity: 0.8 
             })
-             .addTo(communityDrawnItems) // मार्कर को फीचर ग्रुप में जोड़ें
+             .addTo(communityDrawnItems) 
              .bindPopup(`CO₂ Saved: ${item.co2.toFixed(1)} t/yr. Trees: ${item.trees}`);
         });
-        
-        // यदि मार्कर हैं, तो मैप को उन सभी मार्करों के बाउंड पर ज़ूम करें
         if (communityData.length > 0) {
-             communityMap.invalidateSize(); // मैप साइज़ को फिर से जाँचें
+             communityMap.invalidateSize(); 
              const bounds = communityDrawnItems.getBounds();
              if (bounds.isValid()) {
                  communityMap.fitBounds(bounds, { padding: [50, 50] });
              } else {
-                 // यदि केवल एक ही पॉइंट है, तो सिर्फ़ उस पर सेट करें
                  const latest = communityData[communityData.length - 1];
                  communityMap.setView([latest.lat, latest.lon], 12);
              }
@@ -773,8 +792,6 @@ function displayAqiResults(aqiData) {
     if (aqiData.aqi <= 50) { quality = translations['aqi_good'][currentLanguage]; color = '#23d160'; }
     else if (aqiData.aqi <= 100) { quality = translations['aqi_moderate'][currentLanguage]; color = '#ff9d00'; }
     else { quality = translations['aqi_unhealthy'][currentLanguage]; color = '#ff3860'; }
-
-    // Display the location name passed to the function
     aqiEl.innerHTML = `<p style="margin-bottom: 0.5rem;"><strong>${translations['aqi_city'][currentLanguage]}:</strong> ${aqiData.city}</p><h3 style="font-size: 2.5rem; color: ${color}; margin: 0.5rem 0;">${aqiData.aqi}</h3><p style="color: ${color};"><strong>${quality}</strong></p><p class="small-text">Source: ${aqiData.source}</p>`;
     aqiContainer.style.display = 'block';
 }
@@ -1017,11 +1034,9 @@ function handleMaintenanceForm(event) {
 }
 
 function getStarRatingHtml(rating) {
-    const fullStar = '⭐'; // Or '&#9733;' (★)
-    const emptyStar = '☆'; // Or '&#9734;' (☆)
+    const fullStar = '⭐'; 
+    const emptyStar = '☆'; 
     const maxRating = 5;
-    
-    // Round the rating to the nearest whole number for star count display
     const totalStars = Math.round(rating);
     let starsHtml = '';
     
@@ -1325,7 +1340,7 @@ const translations = {
     
     pollution_title: { en: "Pollution Reduction Impact (Source: NASA TEMPO)", hi: "प्रदूषण कम करने का प्रभाव (स्रोत: नासा TEMPO)" },
     explainer_generate_btn: { en: "Generate Solar Analysis", hi: "सोलर विश्लेषण उत्पन्न करें" },
-    explainer_generate_btn_text: { en: "Generate Solar Analysis", hi: "सोलर विश्लेषण उत्पन्न करें" },
+    explainer_generate_btn_text: { en: "Generate Solar Analysis", hi: " सोलर विश्लेषण उत्पन्न करें" },
 
     chat_title: { en: "Ask Your Solar Bot 🤖", hi: "अपने सोलर बॉट से पूछें 🤖" },
     chat_welcome: { en: "Hello! I'm here to answer your questions about solar energy.", hi: "नमस्ते! मैं सौर ऊर्जा के बारे में आपके सवालों का जवाब देने के लिए यहाँ हूँ।" },
@@ -1384,7 +1399,7 @@ const translations = {
     aqi_good: { en: "Good", hi: "अच्छा" },
     aqi_moderate: { en: "Moderate", hi: "मध्यम" },
     aqi_unhealthy: { en: "Unhealthy", hi: "अस्वास्थ्यकर" },
-    aqi_city: { en: "City/Address", hi: "शहर/पता" }, // Updated label
+    aqi_city: { en: "City/Address", hi: "शहर/पता" }, 
     gamification_title: { en: "🚀 Your Mission Impact", hi: "🚀 आपके मिशन का प्रभाव" },
     gamification_rover: { en: "Your annual energy could power NASA's <strong>Perseverance Rover on Mars for {roverDays} days!</strong>", hi: "आपकी वार्षिक ऊर्जा नासा के <strong>पर्सिवरेंस रोवर को मंगल ग्रह पर {roverDays} दिनों तक चला सकती है!</strong>" },
     gamification_iss: { en: "It could also power the <strong>International Space Station for {issSeconds} seconds!</strong>", hi: "यह <strong>अंतर्राष्ट्रीय अंतरिक्ष स्टेशन को {issSeconds} सेकंड तक भी चला सकती है!</strong>" },
