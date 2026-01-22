@@ -42,12 +42,11 @@ As the **Sole Developer**, I handled the entire product lifecycle—from concept
 
 | **Home Page** | **Solar Calculator** |
 |:---:|:---:|
-| <img src="home.png" width="100%" alt="Home Page"/> | <img src="calculator.png" width="100%" alt="Solar Calculator"/> |
+| <img src="Home%20Page.png" width="100%" alt="Home Page"/> | <img src="Solar%20Calculator.png" width="100%" alt="Solar Calculator"/> |
 
 | **Educational Hub** | **Responsive Mobile View** |
 |:---:|:---:|
-| <img src="education.png" width="100%" alt="Education"/> | <img src="mobile.png" width="100%" alt="Mobile View"/> |
-
+| <img src="Education.png" width="100%" alt="Education"/> | <img src="Mobile%20View.png" width="100%" alt="Mobile View"/> |
 ---
 
 ## ✨ Key Features
