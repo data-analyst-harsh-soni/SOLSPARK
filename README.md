@@ -15,11 +15,15 @@
   </a>
 </h3>
 
-<p align="center">
-  <strong>"Empowering communities to transition to renewable energy through accessible data and interactive tools."</strong>
-</p>
-
 </div>
+
+---
+
+## 🔐 Access Credentials
+**To access the full features of the website, please use the following login details:**
+
+> **User ID:** `nasa`  
+> **Password:** `1234`
 
 ---
 
@@ -44,9 +48,6 @@ As the **Sole Developer**, I handled the entire product lifecycle—from concept
 |:---:|:---:|
 | <img src="Home%20Page.png" width="100%" alt="Home Page"/> | <img src="Solar%20Calculator.png" width="100%" alt="Solar Calculator"/> |
 
-| **Educational Hub** | **Responsive Mobile View** |
-|:---:|:---:|
-| <img src="Education.png" width="100%" alt="Education"/> | <img src="Mobile%20View.png" width="100%" alt="Mobile View"/> |
 ---
 
 ## ✨ Key Features
